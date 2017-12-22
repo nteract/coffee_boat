@@ -1,2 +1,2 @@
 # pyspark-deps
-WIP PySpark dependency management w/Pipenv
+WIP PySpark dependency management.
