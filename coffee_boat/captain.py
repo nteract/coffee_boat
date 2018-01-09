@@ -111,17 +111,21 @@ class Captain():
     print("Packaging conda env")
     subprocess.check_call(["zip", zip_target, "-r", conda_prefix], stdout=DEVNULL)
     relative_python_path = "." + conda_prefix + "/bin/python"
-    # Screw around with enviroment variables so that the env gets distributed.
-    old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
+
+    # Make a self extractor script
     runner_script = inspect.cleandoc("""#!/bin/bash
     if [ -f coffee_boat.zip ];
     then
       unzip coffee_boat.zip && rm coffee_boat.zip
     fi
     {0}""".format(relative_python_path))
-    with open(os.path.join(self.working_dir, "coffee_boat_runner.sh"), 'w') as f:
+    runner_script_path = os.path.join(self.working_dir, "coffee_boat_runner.sh")
+    with open(runner_script_path, 'w') as f:
       f.write(runner_script)
-    subprocess.check_call(["chmod", "a+x", "coffee_boat_runner.sh"])
+    subprocess.check_call(["chmod", "a+x", runner_script_path])
+
+    # Screw around with enviroment variables so that the env gets distributed.
+    old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
     new_args = "--pyfiles {0},{1} {2}".format(zip_target, runner_script_path, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
     if "PYSPARK_GATEWAY_PORT" in os.environ:
