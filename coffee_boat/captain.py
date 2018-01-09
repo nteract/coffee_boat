@@ -34,7 +34,7 @@ class Captain():
                accept_conda_license=False,
                python_version=None):
     """Create a captain to captain the coffee boat and install the packages.
-    Currently only supports conda (on YARN), TODO:PEX for others.
+    Currently only supports conda, TODO:PEX for others.
     :param use_conda: Build a conda package rather than a pex package.
     :param install_local: Attempt to install packages locally as well
     :param env_name: Enviroment name to use. May squash existing enviroment
@@ -110,14 +110,23 @@ class Captain():
     zip_target = os.path.join(self.working_dir, "coffee_boat.zip")
     print("Packaging conda env")
     subprocess.check_call(["zip", zip_target, "-r", conda_prefix], stdout=DEVNULL)
-    python_path = "." + conda_prefix + "/bin/python"
+    relative_python_path = "." + conda_prefix + "/bin/python"
     # Screw around with enviroment variables so that the env gets distributed.
     old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
-    new_args = "--archives {0} {1}".format(zip_target, old_args)
+    runner_script = inspect.cleandoc("""#!/bin/bash
+    if [ -f coffee_boat.zip ];
+    then
+      unzip coffee_boat.zip && rm coffee_boat.zip
+    fi
+    {0}""".format(relative_python_path))
+    with file.open(os.path.join(self.working_dir, "coffee_boat_runner.sh"), 'w') as f:
+      f.write(runner_script)
+    subprocess.check_call(["chmod", "a+x", "coffee_boat_runner.sh"])
+    new_args = "--pyfiles {0},{1} {2}".format(zip_target, runner_script_path, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
     if "PYSPARK_GATEWAY_PORT" in os.environ:
       print("Hey the Java process is already running, this might not work.")
-    os.environ["PYSPARK_PYTHON"] = python_path
+    os.environ["PYSPARK_PYTHON"] = "coffee_boat_runner.sh"
 
 
 
