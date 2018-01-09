@@ -96,7 +96,7 @@ class Captain():
     subprocess.check_call(["zip", zip_target, "-r", conda_prefix], stdout=DEVNULL)
     python_path = "." + conda_prefix + "/bin/python"
     old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
-    new_args = "--py-files {0} {1}".format(zip_target, old_args)
+    new_args = "--archives {0} {1}".format(zip_target, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
     if "PYSPARK_GATEWAY_PORT" in os.environ:
       print("Hey the Java process is already running, this might not work.")
