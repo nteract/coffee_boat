@@ -53,7 +53,6 @@ class Captain():
         atexit.register(lambda: shutil.rmtree(self.working_dir))
     if use_conda:
       self._setup_or_find_conda()
-    self.base_env = base_env
     self.pip_pkgs = []
     return
 
@@ -79,7 +78,6 @@ class Captain():
   def _launch_conda_ship(self):
     """Create a conda enviroment, zips it up, and manipulate the enviroment variables.
     """
-
     # Create the conda package env spec
     pkgs = [""]
     pkgs.extend(map(str, self.pip_pkgs))
