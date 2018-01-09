@@ -119,7 +119,7 @@ class Captain():
       unzip coffee_boat.zip && rm coffee_boat.zip
     fi
     {0}""".format(relative_python_path))
-    with file.open(os.path.join(self.working_dir, "coffee_boat_runner.sh"), 'w') as f:
+    with open(os.path.join(self.working_dir, "coffee_boat_runner.sh"), 'w') as f:
       f.write(runner_script)
     subprocess.check_call(["chmod", "a+x", "coffee_boat_runner.sh"])
     new_args = "--pyfiles {0},{1} {2}".format(zip_target, runner_script_path, old_args)
