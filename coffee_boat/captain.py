@@ -116,7 +116,7 @@ class Captain():
     runner_script = inspect.cleandoc("""#!/bin/bash
     if [ -f coffee_boat.zip ];
     then
-      unzip coffee_boat.zip && rm coffee_boat.zip
+      unzip coffee_boat.zip &>/dev/null && rm coffee_boat.zip &> /dev/null
     fi
     {0}""".format(relative_python_path))
     runner_script_path = os.path.join(self.working_dir, "coffee_boat_runner.sh")
