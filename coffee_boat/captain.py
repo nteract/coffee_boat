@@ -86,6 +86,7 @@ class Captain():
     package_spec_file.flush()
     conda_prefix = os.path.join(self.working_dir, self.env_name)
     print("Creating conda env")
+    subprocess.check_call(["rm", "-rf", conda_prefix])
     subprocess.check_call([self.conda, "env", "create", "-f", package_spec_path,
                            "--prefix", conda_prefix], stdout=DEVNULL)
     zip_target = os.path.join(self.working_dir, "coffee_boat.zip")
