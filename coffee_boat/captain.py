@@ -1,30 +1,51 @@
+import inspect
 import pyspark
 import sys
 import subprocess
+import shutil
 import tempfile
+import os
+
 
 __all__ = ['Captain']
+
+handle_del = False
+
+try:
+    from subprocess import DEVNULL # py3k
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
 
 class Captain():
   """
   The captain of the coffee boat is used to setup packages for Spark to use.
   To use it run init, call the `add_pip_packages` for whatever you wish to add and then
   `launch_ship` before you create your SparkContext.
+
+  The coffee boat captain currently works by creating a conda env and shipping it.
   """
 
   def __init__(self, base_env="anaconda", install_local=True, env_name=None,
                working_dir=None,
-               accept_conda_license=False):
+               accept_conda_license=False, python_version=None):
     """Create a captain to captain the coffee boat and install the packages.
-    :param base_env: Base enviroment to use. Only supported in conda.
+    :param base_env: Base enviroment to use. Only supported in conda. (FUTURE)
     :param install_local: Attempt to install packages locally as well
     :param env_name: Enviroment name to use. May squash existing enviroment
     :param working_dir: Directory for working in.
     :param accept_conda_license: If you accept the conda license. Set it True to work.
     """
+    self.accept_conda_license = accept_conda_license
     self.working_dir = working_dir
+    self.install_local = install_local
+    self.env_name = env_name or "coffee_boat"
+    self.python_version = python_version or '.'.join(map(str, sys.version_info[:3]))
     if not self.working_dir:
-      self.working_dir = tempfile.mkdtemp()
+      self.working_dir = tempfile.mkdtemp(prefix="coffee_boat_tmp_")
+      import atexit
+      if handle_del:
+        atexit.register(lambda: shutil.rmtree(self.working_dir))
     self._setup_or_find_conda()
     self.base_env = base_env
     self.pip_pkgs = []
@@ -33,10 +54,10 @@ class Captain():
   def add_pip_packages(self, *pkgs):
     """Add a pip packages"""
     self._raise_if_running()
-    if install_local:
+    if self.install_local:
       args = ["pip", "install"]
       args.extend(pkgs)
-      subprocess.check_call(args)
+      subprocess.check_call(args, stdout=DEVNULL)
     self.pip_pkgs.extend(pkgs)
 
   def launch_ship(self):
@@ -45,6 +66,37 @@ class Captain():
        This function must be called before your init your SparkContext!
     """
     self._raise_if_running()
+    pkgs = [""]
+    pkgs.extend(map(str, self.pip_pkgs))
+    pip_packages = '\n  - '.join(pkgs)
+    # Create the package_spec
+    base_package_spec = inspect.cleandoc("""
+    name: {0}
+    dependencies:
+    - python=={1}
+    - anaconda
+    - pip
+    - pip:
+    """).format(self.env_name, self.python_version)
+    package_spec = "{0}{1}".format(base_package_spec, pip_packages)
+    package_spec_file = tempfile.NamedTemporaryFile(dir=self.working_dir, delete=handle_del)
+    package_spec_path = package_spec_file.name
+    print("Writing package spec to {0}.".format(package_spec_path))
+    package_spec_file.write(package_spec)
+    package_spec_file.flush()
+    conda_prefix = os.path.join(self.working_dir, self.env_name)
+    print("Creating conda env")
+    subprocess.check_call([self.conda, "env", "create", "-f", package_spec_path,
+                           "--prefix", conda_prefix], stdout=DEVNULL)
+    zip_target = os.path.join(self.working_dir, "coffee_boat.zip")
+    print("Packaging conda env")
+    subprocess.check_call(["zip", zip_target, "-r", conda_prefix], stdout=DEVNULL)
+    python_path = "." + conda_prefix + "/bin/python"
+    old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
+    new_args = "--py-files {0} {1}".format(zip_target, old_args)
+    os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
+    #os.environ["PYSPARK_PYTHON"] = python_path
+
 
 
   def _raise_if_running(self):
@@ -64,13 +116,16 @@ class Captain():
       self.conda = "conda"
       return
     # Install conda if we need to
+    if not self.accept_conda_license:
+      raise Exception("Please accept the conda license by setting accept_conda_license")
     python_version = sys.version_info[0]
     url = "https://repo.continuum.io/miniconda/Miniconda%d-latest-Linux-x86_64.sh" % python_version
     print("Downloading conda from %s to %s" % (url, self.working_dir))
     mini_conda_target = "%s/%s" % (self.working_dir, "miniconda.sh")
-    subprocess.check_call(["wget", url, "-O", mini_conda_target, "-nv"], shell=False)
+    subprocess.check_call(["wget", url, "-O", mini_conda_target, "-nv"], shell=False,
+                          stdout=DEVNULL)
     print("Running conda setup....")
-    subprocess.check_call(["chmod", "a+x", mini_conda_target], shell=False)
+    subprocess.check_call(["chmod", "a+x", mini_conda_target], shell=False, stdout=DEVNULL)
     conda_target = "%s/%s" % (self.working_dir, "conda")
-    subprocess.check_call(["miniconda.sh", "-b", "-p", conda_target])
+    subprocess.check_call([mini_conda_target, "-b", "-p", conda_target], stdout=DEVNULL, stderr=DEVNULL)
     self.conda = "%s/bin/conda" % conda_target
