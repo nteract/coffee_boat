@@ -51,6 +51,7 @@ class Captain():
       import atexit
       if handle_del:
         atexit.register(lambda: shutil.rmtree(self.working_dir))
+    self.use_conda = use_conda
     if use_conda:
       self._setup_or_find_conda()
     self.pip_pkgs = []
