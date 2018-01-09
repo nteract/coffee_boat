@@ -100,7 +100,7 @@ class Captain():
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
     if "PYSPARK_GATEWAY_PORT" in os.environ:
       print("Hey the Java process is already running, this might not work.")
-    #os.environ["PYSPARK_PYTHON"] = python_path
+    os.environ["PYSPARK_PYTHON"] = python_path
 
 
 
