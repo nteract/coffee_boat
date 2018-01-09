@@ -86,7 +86,9 @@ class Captain():
     package_spec_file.flush()
     conda_prefix = os.path.join(self.working_dir, self.env_name)
     print("Creating conda env")
-    subprocess.check_call(["rm", "-rf", conda_prefix])
+    if os.path.exists(conda_prefix):
+      print("Cleaining up old prefix {0}".format(conda_prefix))
+      subprocess.check_call(["rm", "-rf", conda_prefix])
     subprocess.check_call([self.conda, "env", "create", "-f", package_spec_path,
                            "--prefix", conda_prefix], stdout=DEVNULL)
     zip_target = os.path.join(self.working_dir, "coffee_boat.zip")
@@ -96,6 +98,8 @@ class Captain():
     old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
     new_args = "--py-files {0} {1}".format(zip_target, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
+    if "PYSPARK_GATEWAY_PORT" in os.environ:
+      print("Hey the Java process is already running, this might not work.")
     #os.environ["PYSPARK_PYTHON"] = python_path
 
 
