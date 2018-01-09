@@ -126,11 +126,11 @@ class Captain():
 
     # Screw around with enviroment variables so that the env gets distributed.
     old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
-    new_args = "--pyfiles {0},{1} {2}".format(zip_target, runner_script_path, old_args)
+    new_args = "--py-files {0},{1} {2}".format(zip_target, runner_script_path, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
     if "PYSPARK_GATEWAY_PORT" in os.environ:
       print("Hey the Java process is already running, this might not work.")
-    os.environ["PYSPARK_PYTHON"] = "coffee_boat_runner.sh"
+    os.environ["PYSPARK_PYTHON"] = "./coffee_boat_runner.sh"
 
 
 
