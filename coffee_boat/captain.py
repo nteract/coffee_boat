@@ -118,7 +118,7 @@ class Captain():
     then
       unzip coffee_boat.zip &>/dev/null && rm coffee_boat.zip &> /dev/null
     fi
-    {0}""".format(relative_python_path))
+    {0} "$@"""".format(relative_python_path))
     runner_script_path = os.path.join(self.working_dir, "coffee_boat_runner.sh")
     with open(runner_script_path, 'w') as f:
       f.write(runner_script)
