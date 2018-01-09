@@ -26,11 +26,16 @@ class Captain():
   The coffee boat captain currently works by creating a conda env and shipping it.
   """
 
-  def __init__(self, base_env="anaconda", install_local=True, env_name=None,
+  def __init__(self,
+               use_conda=True,
+               install_local=True,
+               env_name=None,
                working_dir=None,
-               accept_conda_license=False, python_version=None):
+               accept_conda_license=False,
+               python_version=None):
     """Create a captain to captain the coffee boat and install the packages.
-    :param base_env: Base enviroment to use. Only supported in conda. (FUTURE)
+    Currently only supports conda (on YARN), TODO:PEX for others.
+    :param use_conda: Build a conda package rather than a pex package.
     :param install_local: Attempt to install packages locally as well
     :param env_name: Enviroment name to use. May squash existing enviroment
     :param working_dir: Directory for working in.
@@ -46,7 +51,8 @@ class Captain():
       import atexit
       if handle_del:
         atexit.register(lambda: shutil.rmtree(self.working_dir))
-    self._setup_or_find_conda()
+    if use_conda:
+      self._setup_or_find_conda()
     self.base_env = base_env
     self.pip_pkgs = []
     return
@@ -61,11 +67,20 @@ class Captain():
     self.pip_pkgs.extend(pkgs)
 
   def launch_ship(self):
-    """Create a conda enviroment, tar it up, and manipulate the enviroment variables.
+    """Creates a relocatable enviroment and distributes it.
     .. note::
-       This function must be called before your init your SparkContext!
-    """
+       This function must be called before your init your SparkContext!"""
     self._raise_if_running()
+    if self.use_conda:
+      return self._launch_conda_ship()
+    else:
+      return self._launch_pex()
+
+  def _launch_conda_ship(self):
+    """Create a conda enviroment, zips it up, and manipulate the enviroment variables.
+    """
+
+    # Create the conda package env spec
     pkgs = [""]
     pkgs.extend(map(str, self.pip_pkgs))
     pip_packages = '\n  - '.join(pkgs)
@@ -84,6 +99,7 @@ class Captain():
     print("Writing package spec to {0}.".format(package_spec_path))
     package_spec_file.write(package_spec)
     package_spec_file.flush()
+    # Create the conda env
     conda_prefix = os.path.join(self.working_dir, self.env_name)
     print("Creating conda env")
     if os.path.exists(conda_prefix):
@@ -91,10 +107,12 @@ class Captain():
       subprocess.check_call(["rm", "-rf", conda_prefix])
     subprocess.check_call([self.conda, "env", "create", "-f", package_spec_path,
                            "--prefix", conda_prefix], stdout=DEVNULL)
+    # Package it for distro
     zip_target = os.path.join(self.working_dir, "coffee_boat.zip")
     print("Packaging conda env")
     subprocess.check_call(["zip", zip_target, "-r", conda_prefix], stdout=DEVNULL)
     python_path = "." + conda_prefix + "/bin/python"
+    # Screw around with enviroment variables so that the env gets distributed.
     old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
     new_args = "--archives {0} {1}".format(zip_target, old_args)
     os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
