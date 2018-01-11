@@ -11,14 +11,16 @@ class TestBasicDep(unittest2.TestCase):
         import os
         print(os.environ)
         from coffee_boat import Captain
-        # Creat a captain
+        # Create a captain
         captain = Captain(accept_conda_license=True)
+
         # Validate we don't have nbconvert installed in local context
         import subprocess
         subprocess.call(["pip", "uninstall", "-y", "nbconvert"])
         with self.assertRaises(ImportError):
             import nbconvert
         captain.add_pip_packages("pandas==0.22.0", "nbconvert")
+
         # We should now have it....
         import nbconvert
         import pandas
@@ -46,7 +48,6 @@ class TestBasicDep(unittest2.TestCase):
         self.assertTrue("auto" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
-
     # TODO: figure out why we need a new python process.
     def test_non_local_env(self):
         import os
@@ -59,7 +60,7 @@ class TestBasicDep(unittest2.TestCase):
         subprocess.call(["pip", "uninstall", "-y", "kubepy"])
         with self.assertRaises(ImportError):
             import kubepy
-        captain.add_pip_packages("pandas==0.22.0","kubepy")
+        captain.add_pip_packages("pandas==0.22.0", "kubepy")
         # We should now have it distributed but not local
         with self.assertRaises(ImportError):
             import kubepy

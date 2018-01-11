@@ -111,14 +111,15 @@ class Captain(object):
         pkgs.extend(map(str, self.pip_pkgs))
         pip_packages = '\n  - '.join(pkgs)
         # Create the package_spec
-        base_package_spec = inspect.cleandoc("""
-        name: {0}
-        dependencies:
-        - python=={1}
-        - anaconda
-        - pip
-        - pip:
-        """).format(self.env_name, self.python_version)
+        base_package_spec = inspect.cleandoc(
+            """
+            name: {0}
+            dependencies:
+            - python=={1}
+            - anaconda
+            - pip
+            - pip:
+            """).format(self.env_name, self.python_version)
         package_spec = "{0}{1}".format(base_package_spec, pip_packages)
         package_spec_file = tempfile.NamedTemporaryFile(dir=self.working_dir,
                                                         delete=handle_del)
