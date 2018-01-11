@@ -9,12 +9,9 @@ cache:
     - $HOME/.cache/pip
     - $HOME/.pip-cache
 sudo: false
-before_install:
-  - virtualenv myenv
-  - source myenv/bin/activate
 install:
   - pip install -U pip
-  - pip install --pre -r dev-requirements.txt .
+  - pip install --pre -r requirements-dev.txt .
   - pip freeze
   # Download spark 2.2.0
   - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark/spark-2.2.0-bin-hadoop2.7.tgz"
