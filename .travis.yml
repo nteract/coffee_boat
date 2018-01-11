@@ -22,7 +22,7 @@ install:
   - ./sbin/start-slave.sh spark://localhost:7077
   - popd
 script:
-  - pytest -v coffee_boat/tests.py
+  - pytest -v .
 notifications:
   email:
     recipients:
