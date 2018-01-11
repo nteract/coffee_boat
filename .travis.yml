@@ -13,7 +13,7 @@ before_install:
   - virtualenv myenv
   - source myenv/bin/activate
   - pip install --upgrade pip
-  - pip install codecov coverage unittest2 nose backports
+  - pip install codecov coverage unittest2 nose backports.weakref
   - pip install pyspark
   # Download spark 2.2.0
   - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark/spark-2.2.0-bin-hadoop2.7.tgz"
