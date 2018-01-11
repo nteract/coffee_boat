@@ -22,6 +22,9 @@ before_install:
   - ./sbin/start-master.sh -h localhost
   - ./sbin/start-slave.sh spark://localhost:7077
   - popd
-install:
+script:
   - nosetests .
-  
+notifications:
+  email:
+    recipients:
+      - holden@pigscanfly.ca
