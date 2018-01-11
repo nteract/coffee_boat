@@ -11,14 +11,16 @@ class TestBasicDep(unittest2.TestCase):
         import os
         print(os.environ)
         from coffee_boat import Captain
-        # Creat a captain
+        # Create a captain
         captain = Captain(accept_conda_license=True)
+
         # Validate we don't have nbconvert installed in local context
         import subprocess
         subprocess.call(["pip", "uninstall", "-y", "nbconvert"])
         with self.assertRaises(ImportError):
             import nbconvert
         captain.add_pip_packages("pandas==0.22.0", "nbconvert")
+
         # We should now have it....
         import nbconvert
         import pandas
