@@ -16,9 +16,9 @@ before_install:
   - pip install --upgrade pip
   - pip install pyspark
   # Download spark 2.2.0
-  - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark-2.2.0-bin-hadoop2.7.tgz"
+  - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark/spark-2.2.0-bin-hadoop2.7.tgz"
   # Start the local master
-  - pushd spark/spark-2.2.0-bin-hadoop2.7
+  - pushd spark-2.2.0-bin-hadoop2.7
   - ./sbin/start-master.sh -h localhost
   - ./sbin/start-slave.sh spark://localhost:7077
 install:
