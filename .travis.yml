@@ -1,7 +1,7 @@
 language: python
 python:
   - "2.7"
-#  - "3.4"
+# - "3.4"
   - "3.5"
 cache:
   directories:
@@ -12,8 +12,10 @@ sudo: false
 before_install:
   - virtualenv myenv
   - source myenv/bin/activate
-  - pip install --upgrade pip
-  - pip install -r requirements-dev.txt
+install:
+  - pip install -U pip
+  - pip install --pre -r dev-requirements.txt .
+  - pip freeze
   # Download spark 2.2.0
   - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark/spark-2.2.0-bin-hadoop2.7.tgz"
   # Start the local master
@@ -22,7 +24,7 @@ before_install:
   - ./sbin/start-slave.sh spark://localhost:7077
   - popd
 script:
-  - nosetests .
+  - pytest -v --maxfail=2 --cov=coffee_boat coffee_boat/tests.py
 notifications:
   email:
     recipients:
