@@ -1,0 +1,30 @@
+language: python
+python:
+  - "2.7"
+#  - "3.4"
+#  - "3.5"
+cache:
+  directories:
+    - $HOME/spark
+    - $HOME/.cache/pip
+    - $HOME/.pip-cache
+sudo: false
+before_install:
+  - virtualenv myenv
+  - source myenv/bin/activate
+  - pip install --upgrade pip
+  - pip install codecov coverage unittest2 nose backports.weakref
+  - pip install pyspark
+  # Download spark 2.2.0
+  - "[ -f spark ] || mkdir spark && pushd spark && wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && popd && tar -xf ./spark/spark-2.2.0-bin-hadoop2.7.tgz"
+  # Start the local master
+  - pushd spark-2.2.0-bin-hadoop2.7
+  - ./sbin/start-master.sh -h localhost
+  - ./sbin/start-slave.sh spark://localhost:7077
+  - popd
+script:
+  - nosetests .
+notifications:
+  email:
+    recipients:
+      - holden@pigscanfly.ca

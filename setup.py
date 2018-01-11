@@ -21,5 +21,6 @@ setup(
         'nose==1.3.7',
         'coverage>3.7.0',
         'unittest2>=1.0.0',
+        'backports.weakref',
     ],
 )
