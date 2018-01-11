@@ -1,8 +1,9 @@
 language: python
 python:
   - "2.7"
-# - "3.4"
+  - "3.4"
   - "3.5"
+  - "3.6"
 cache:
   directories:
     - $HOME/spark
@@ -21,7 +22,7 @@ install:
   - ./sbin/start-slave.sh spark://localhost:7077
   - popd
 script:
-  - pytest -v --maxfail=2 --cov=coffee_boat coffee_boat/tests.py
+  - pytest -v coffee_boat/tests.py
 notifications:
   email:
     recipients:
