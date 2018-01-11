@@ -75,6 +75,17 @@ class Captain():
     .. note::
        This function must be called before your init your SparkContext!"""
     self._raise_if_running()
+
+    # Doing sketchy things with the gateway
+    if pyspark.context.SparkContext._gateway is not None:
+      try:
+        pyspark.context.SparkContext._gateway.jvm.java.lang.System.exit(0)
+      except Exception:
+        pass
+      self._cleanup_keys()
+      pyspark.context.SparkContext._gateway = None
+
+    # Dispatch
     if self.use_conda:
       self._setup_or_find_conda()
       return self._launch_conda_ship()
@@ -88,6 +99,7 @@ class Captain():
     pkgs = [""]
     pkgs.extend(map(str, self.pip_pkgs))
     pip_packages = '\n  - '.join(pkgs)
+
     # Create the package_spec
     base_package_spec = inspect.cleandoc("""
     name: {0}
@@ -103,6 +115,7 @@ class Captain():
     print("Writing package spec to {0}.".format(package_spec_path))
     package_spec_file.write(package_spec)
     package_spec_file.flush()
+
     # Create the conda env
     conda_prefix = os.path.join(self.working_dir, self.env_name)
     print("Creating conda env")
@@ -155,9 +168,19 @@ class Captain():
           "Spark context is already running. "
           "All coffee boat activites must occure before launching your SparkContext."
           "You can stop your current SparkContext (with sc.stop() or session.stop()) "
-          "add more dependencies and re-start your SparkContext if needed."
-          "\n***NOTE***: For now you must restart your Python process (issue #11)")
+          "add more dependencies and re-start your SparkContext if needed.")
 
+  def _cleanup_keys(self):
+    import os
+    def cleanup_key(name):
+      if name in os.environ:
+        del os.environ[name]
+    keys = [
+      "PYSPARK_PYTHON",
+      "PYSPARK_GATEWAY_PORT",
+      "_PYSPARK_DRIVER_CALLBACK_HOST",
+      "_PYSPARK_DRIVER_CALLBACK_PORT"]
+    map(cleanup_key, keys)
 
   def _setup_or_find_conda(self):
     # Check if we need to setup conda or return if we already have one

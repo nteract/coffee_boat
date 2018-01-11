@@ -42,13 +42,12 @@ class TestBasicDep(unittest2.TestCase):
       rdd.map(test_imports).collect()
     finally:
       sc.stop()
-      self.cleanup_keys()
     self.assertTrue("auto" in result[0][1])
     self.assertTrue("python" in result[0][1])
 
 
   # TODO: figure out why we need a new python process.
-  def boop_non_local_env(self):
+  def test_non_local_env(self):
     import os
     print(os.environ)
     from coffee_boat import Captain
@@ -75,18 +74,4 @@ class TestBasicDep(unittest2.TestCase):
       result = rdd.map(find_info).collect()
     finally:
       sc.stop()
-      self.cleanup_keys()
-    self.assertTrue("coffee_boat/bin/python" in result[0][1])
-
-  def cleanup_keys(self):
-    import os
-    def cleanup_key(name):
-      if name in os.environ:
-        del os.environ[name]
-    keys = [
-      "PYSPARK_PYTHON",
-      "PYSPARK_GATEWAY_PORT",
-      "PYSPARK_SUBMIT_ARGS",
-      "_PYSPARK_DRIVER_CALLBACK_HOST",
-      "_PYSPARK_DRIVER_CALLBACK_PORT"]
-    map(cleanup_key, keys)
+    self.assertTrue("auto" in result[0][1])
