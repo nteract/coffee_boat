@@ -1,4 +1,4 @@
-langauge: python
+language: python
 python:
   - "2.7"
 #  - "3.4"
@@ -21,6 +21,7 @@ before_install:
   - pushd spark-2.2.0-bin-hadoop2.7
   - ./sbin/start-master.sh -h localhost
   - ./sbin/start-slave.sh spark://localhost:7077
+  - popd
 install:
   - nosetests .
   
