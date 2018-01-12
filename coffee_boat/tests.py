@@ -1,5 +1,6 @@
 # Basics tests for coffee boat. Note requires running local cluster.
 import pyspark
+import subprocess
 import unittest2
 
 
@@ -15,7 +16,6 @@ class TestBasicDep(unittest2.TestCase):
         captain = Captain(accept_conda_license=True)
 
         # Validate we don't have nbconvert installed in local context
-        import subprocess
         subprocess.call(["pip", "uninstall", "-y", "nbconvert"])
         with self.assertRaises(ImportError):
             import nbconvert
@@ -48,7 +48,6 @@ class TestBasicDep(unittest2.TestCase):
         self.assertTrue("auto" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
-    # TODO: figure out why we need a new python process.
     def test_non_local_env(self):
         import os
         print(os.environ)
@@ -76,4 +75,30 @@ class TestBasicDep(unittest2.TestCase):
             result = rdd.map(find_info).collect()
         finally:
             sc.stop()
-        self.assertTrue("coffee_boat/bin/python" in result[0][1])
+        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("python" in result[0][1])
+
+
+    def test_existing_spark(self):
+        from coffee_boat import Captain
+        sc = pyspark.context.SparkContext(master="spark://localhost:7077")
+        try:
+            subprocess.call(["pip", "uninstall", "-y", "pyarrow"])
+            with self.assertRaises(ImportError):
+                import pyarrow
+            captain = Captain(accept_conda_license=True)
+            captain.add_pip_packages("pyarrow")
+            captain.launch_ship()
+            rdd = sc.parallelize(range(2))
+
+            def find_info(x):
+                import os
+                #import pyarrow
+                import sys
+                return (x, sys.executable, os.environ['PYTHONPATH'])
+
+            result = rdd.map(find_info).collect()
+        finally:
+            sc.stop()
+        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("python" in result[0][1])
