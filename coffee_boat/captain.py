@@ -80,9 +80,21 @@ class Captain(object):
         """Creates a relocatable environment and distributes it.
 
         .. note::
-           This function must be called before you init your SparkContext!
 
+           This function *should* be called before you init your SparkContext, if it's
+           called after we need to do some sketchy things to make it work.
         """
+        # Doing sketchy things with the gateway if we've already stopped
+        active_context = pyspark.context.SparkContext._active_spark_context
+        gateway = pyspark.context.SparkContext._gateway
+        if active_context is None and gateway is not None:
+            try:
+                pyspark.context.SparkContext._gateway.jvm.java.lang.System.exit(0)
+            except Exception:
+                pass
+            self._cleanup_keys()
+            pyspark.context.SparkContext._gateway = None
+
         if self.use_conda:
             self._setup_or_find_conda()
             return self._launch_conda_ship()
@@ -159,10 +171,15 @@ class Captain(object):
         print("using {0} as python arguments".format(new_args))
         os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
         # Handle active/already running contexts.
-        active_context = spark.context.SparkContext._active_spark_context
-        if active_context is not None:
-            active_context.addFile(zip_target)
-            active_context.addFile(runner_script_path)
+        sc = pyspark.context.SparkContext._active_spark_context
+        if sc is not None:
+            print("Adding {0} & {1} to existing sc".format(zip_target, runner_script_path))
+            sc.addFile(zip_target)
+            sc.addFile(runner_script_path)
+            print("Updating python exec on existing sc")
+            sc.pythonExec = "./{0}".format(script_name)
+        else:
+            print("No active context, depending on submit args.")
 
         if "PYSPARK_GATEWAY_PORT" in os.environ:
             print("Hey the Java process is already running, this might not work.")
@@ -202,3 +219,15 @@ class Captain(object):
                               stdout=DEVNULL,
                               stderr=DEVNULL)
         self.conda = "%s/bin/conda" % conda_target
+
+    def _cleanup_keys(self):
+        import os
+        def cleanup_key(name):
+            if name in os.environ:
+                del os.environ[name]
+        keys = [
+            "PYSPARK_PYTHON",
+            "PYSPARK_GATEWAY_PORT",
+            "_PYSPARK_DRIVER_CALLBACK_HOST",
+            "_PYSPARK_DRIVER_CALLBACK_PORT"]
+        map(cleanup_key, keys)
