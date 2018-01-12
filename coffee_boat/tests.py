@@ -1,4 +1,4 @@
-# Basics tests for coffee boat. Note requires running local cluster.
+"""Basic tests for coffee boat. Note requires running local cluster.s"""
 import pyspark
 import unittest2
 
@@ -30,6 +30,7 @@ class TestBasicDep(unittest2.TestCase):
         sc = pyspark.context.SparkContext(master="spark://localhost:7077")
         try:
             rdd = sc.parallelize(range(2))
+
             def find_info(x):
                 import sys
                 import os
@@ -39,6 +40,7 @@ class TestBasicDep(unittest2.TestCase):
                         os.listdir('.'))
             result = rdd.map(find_info).collect()
             print("Result {0}".format(result))
+
             def test_imports(x):
                 import nbconvert
                 return 1
@@ -49,32 +51,33 @@ class TestBasicDep(unittest2.TestCase):
         self.assertTrue("python" in result[0][1])
 
 
-  # TODO: figure out why we need a new python process.
-  def test_non_local_env(self):
-      import os
-      print(os.environ)
-      from coffee_boat import Captain
-      # Creat a captain
-      captain = Captain(install_local=False, accept_conda_license=True)
-      # Validate we don't have kubepy installed in local context
-      import subprocess
-      subprocess.call(["pip", "uninstall", "-y", "kubepy"])
-      with self.assertRaises(ImportError):
-          import kubepy
-      captain.add_pip_packages("pandas==0.22.0","kubepy")
-      # We should now have it distributed but not local
-      with self.assertRaises(ImportError):
-          import kubepy
-      captain.launch_ship()
-      sc = pyspark.context.SparkContext(master="spark://localhost:7077")
-      try:
-          rdd = sc.parallelize(range(2))
-          def find_info(x):
-              import os
-              import kubepy
-              import sys
-              return (x, sys.executable, os.environ['PYTHONPATH'])
-          result = rdd.map(find_info).collect()
-      finally:
-          sc.stop()
-      self.assertTrue("auto" in result[0][1])
+    # TODO: figure out why we need a new python process.
+    def test_non_local_env(self):
+        import os
+        print(os.environ)
+        from coffee_boat import Captain
+        # Creat a captain
+        captain = Captain(install_local=False, accept_conda_license=True)
+        # Validate we don't have kubepy installed in local context
+        import subprocess
+        subprocess.call(["pip", "uninstall", "-y", "kubepy"])
+        with self.assertRaises(ImportError):
+            import kubepy
+        captain.add_pip_packages("pandas==0.22.0", "kubepy")
+        # We should now have it distributed but not local
+        with self.assertRaises(ImportError):
+            import kubepy
+        captain.launch_ship()
+        sc = pyspark.context.SparkContext(master="spark://localhost:7077")
+        try:
+            rdd = sc.parallelize(range(2))
+
+            def find_info(x):
+                import os
+                import kubepy
+                import sys
+                return (x, sys.executable, os.environ['PYTHONPATH'])
+            result = rdd.map(find_info).collect()
+        finally:
+            sc.stop()
+        self.assertTrue("auto" in result[0][1])
