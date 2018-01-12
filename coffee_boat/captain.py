@@ -69,7 +69,6 @@ class Captain(object):
 
     def add_pip_packages(self, *pkgs):
         """Add pip packages"""
-        self._raise_if_running()
         if self.install_local:
             args = ["pip", "install"]
             args.extend(pkgs)
@@ -84,16 +83,6 @@ class Captain(object):
            This function must be called before you init your SparkContext!
 
         """
-        self._raise_if_running()
-        # Doing sketchy things with the gateway
-        if pyspark.context.SparkContext._gateway is not None:
-            try:
-                pyspark.context.SparkContext._gateway.jvm.java.lang.System.exit(0)
-            except Exception:
-                pass
-            self._cleanup_keys()
-            pyspark.context.SparkContext._gateway = None
-        # Dispatch
         if self.use_conda:
             self._setup_or_find_conda()
             return self._launch_conda_ship()
@@ -170,6 +159,12 @@ class Captain(object):
         new_args = "--files {0},{1} {2}".format(zip_target, runner_script_path, old_args)
         print("using {0} as python arguments".format(new_args))
         os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
+        # Handle active/already running contexts.
+        active_context = spark.context.SparkContext._active_spark_context
+        if active_context is not None:
+            active_context.addFile(zip_target)
+            active_context.addFile(runner_script_path)
+
         if "PYSPARK_GATEWAY_PORT" in os.environ:
             print("Hey the Java process is already running, this might not work.")
         os.environ["PYSPARK_PYTHON"] = "./{0}".format(script_name)
@@ -177,18 +172,6 @@ class Captain(object):
     def _launch_pex(self):
         """ Create a pex environment."""
         pass
-
-    def _raise_if_running(self):
-        """Raise an exception if Spark is already running because it's too
-        late to add or package dependencies at this point.
-
-        """
-        if pyspark.SparkContext._active_spark_context is not None:
-            raise Exception(
-                "Spark context is already running. "
-                "All coffee boat activities must occur before launching your SparkContext."
-                "You can stop your current SparkContext (with sc.stop() or session.stop()) "
-                "add more dependencies and re-start your SparkContext if needed.")
 
     def _setup_or_find_conda(self):
         """Find conda or set up a conda installation"""
