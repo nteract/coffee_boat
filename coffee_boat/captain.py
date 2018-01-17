@@ -5,6 +5,7 @@ import subprocess
 import shutil
 import tempfile
 import uuid
+import warnings
 import os
 
 __all__ = ['Captain']
@@ -69,8 +70,8 @@ class Captain(object):
         return
 
     def add_pip_packages(self, *pkgs):
-        """Add a pip packages"""
-        self._raise_if_running()
+        """Add pip packages"""
+        active_context = pyspark.context.SparkContext._active_spark_context
         if self.install_local:
             args = ["pip", "install"]
             args.extend(pkgs)
@@ -81,21 +82,27 @@ class Captain(object):
         """Creates a relocatable environment and distributes it.
 
         .. note::
-           This function must be called before you init your SparkContext!
 
+           This function *should* be called before you init your SparkContext, if it's
+           called after we need to do some sketchy things to make it work.
         """
-        self._raise_if_running()
-
-        # Doing sketchy things with the gateway
-        if pyspark.context.SparkContext._gateway is not None:
+        # Doing sketchy things with the gateway if we've already stopped the context
+        active_context = pyspark.context.SparkContext._active_spark_context
+        gateway = pyspark.context.SparkContext._gateway
+        if active_context is None and gateway is not None:
             try:
                 pyspark.context.SparkContext._gateway.jvm.java.lang.System.exit(0)
             except Exception:
                 pass
             self._cleanup_keys()
             pyspark.context.SparkContext._gateway = None
+        elif active_context is not None:
+          warnings.warn(
+              "Launching on an existing SparkContext. Packages will only be available to RDDs"
+              "created from here forward. If this makes you sad, stop the Spark context and"
+              "re-create those RDDs you want to have access to your packages in.")
 
-        # Dispatch
+
         if self.use_conda:
             self._setup_or_find_conda()
             return self._launch_conda_ship()
@@ -171,30 +178,24 @@ class Captain(object):
         new_args = "--files {0},{1} {2}".format(zip_target, runner_script_path, old_args)
         print("using {0} as python arguments".format(new_args))
         os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
+        # Handle active/already running contexts.
+        sc = pyspark.context.SparkContext._active_spark_context
+        if sc is not None:
+            print("Adding {0} & {1} to existing sc".format(zip_target, runner_script_path))
+            sc.addFile(zip_target)
+            sc.addFile(runner_script_path)
+            print("Updating python exec on existing sc")
+            sc.pythonExec = "./{0}".format(script_name)
+        else:
+            print("No active context, depending on submit args.")
+
         if "PYSPARK_GATEWAY_PORT" in os.environ:
             print("Hey the Java process is already running, this might not work.")
         os.environ["PYSPARK_PYTHON"] = "./{0}".format(script_name)
 
-    def _raise_if_running(self):
-        """Raise an exception if Spark is already running because its too late to add or package
-        dependencies at this point."""
-        if pyspark.SparkContext._active_spark_context is not None:
-            raise Exception(
-                "Spark context is already running. "
-                "All coffee boat activites must occure before launching your SparkContext."
-                "You can stop your current SparkContext (with sc.stop() or session.stop()) "
-                "add more dependencies and re-start your SparkContext if needed.")
-
-    def _cleanup_keys(self):
-        import os
-        def cleanup_key(name):
-            if name in os.environ:
-                del os.environ[name]
-        keys = ["PYSPARK_PYTHON",
-                "PYSPARK_GATEWAY_PORT",
-                "_PYSPARK_DRIVER_CALLBACK_HOST",
-                "_PYSPARK_DRIVER_CALLBACK_PORT"]
-        map(cleanup_key, keys)
+    def _launch_pex(self):
+        """ Create a pex environment."""
+        pass
 
     def _setup_or_find_conda(self):
         """Find conda or set up a conda installation"""
@@ -226,3 +227,15 @@ class Captain(object):
                               stdout=DEVNULL,
                               stderr=DEVNULL)
         self.conda = "%s/bin/conda" % conda_target
+
+    def _cleanup_keys(self):
+        import os
+        def cleanup_key(name):
+            if name in os.environ:
+                del os.environ[name]
+        keys = [
+            "PYSPARK_PYTHON",
+            "PYSPARK_GATEWAY_PORT",
+            "_PYSPARK_DRIVER_CALLBACK_HOST",
+            "_PYSPARK_DRIVER_CALLBACK_PORT"]
+        map(cleanup_key, keys)
