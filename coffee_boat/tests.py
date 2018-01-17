@@ -105,4 +105,3 @@ class TestBasicDep(unittest2.TestCase):
             sc.stop()
         self.assertTrue("auto" in result[0][1])
         self.assertTrue("python" in result[0][1])
->>>>>>> fcd7374... Add a test with pyarrow on an existing context. We have roughly 3 states of Spark (not running at all, running, context shut down gateway running) and we handle all of them (mini-yay). Still need to handle running better (e.g. no ship re-launch to add a single package).

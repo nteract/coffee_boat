@@ -5,6 +5,7 @@ import subprocess
 import shutil
 import tempfile
 import uuid
+import warnings
 import os
 
 __all__ = ['Captain']
@@ -70,6 +71,7 @@ class Captain(object):
 
     def add_pip_packages(self, *pkgs):
         """Add pip packages"""
+        active_context = pyspark.context.SparkContext._active_spark_context
         if self.install_local:
             args = ["pip", "install"]
             args.extend(pkgs)
@@ -84,7 +86,7 @@ class Captain(object):
            This function *should* be called before you init your SparkContext, if it's
            called after we need to do some sketchy things to make it work.
         """
-        # Doing sketchy things with the gateway if we've already stopped
+        # Doing sketchy things with the gateway if we've already stopped the context
         active_context = pyspark.context.SparkContext._active_spark_context
         gateway = pyspark.context.SparkContext._gateway
         if active_context is None and gateway is not None:
@@ -94,6 +96,12 @@ class Captain(object):
                 pass
             self._cleanup_keys()
             pyspark.context.SparkContext._gateway = None
+        elif active_context is not None:
+          warnings.warn(
+              "Launching on an existing SparkContext. Packages will only be available to RDDs"
+              "created from here forward. If this makes you sad, stop the Spark context and"
+              "re-create those RDDs you want to have access to your packages in.")
+
 
         if self.use_conda:
             self._setup_or_find_conda()
