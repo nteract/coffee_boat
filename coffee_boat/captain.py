@@ -71,11 +71,37 @@ class Captain(object):
 
     def add_pip_packages(self, *pkgs):
         """Add pip packages"""
-        active_context = pyspark.context.SparkContext._active_spark_context
-        if self.install_local:
+        sc = pyspark.context.SparkContext._active_spark_context
+
+        def install_package(*args):
             args = ["pip", "install"]
             args.extend(pkgs)
             subprocess.check_call(args, stdout=DEVNULL)
+
+        if sc is not None:
+            if os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS") is None:
+                print("Adding pip package. Remember to launch your coffee boat before trying to use!")
+            else:
+                print("You've already launched your coffee boat. I'll add this package at runtime"
+                      " using magic, but next time add your packages before so I don't have to use"
+                      " my magical super powers (aka make your code slow).")
+                # Step 1: Setup a dist file so any new hosts coming online will install
+                # TODO: Test this better (probably with circle CI)
+                pip_req_file = tempfile.NamedTemporaryFile(
+                    dir=self.working_dir, delete=handle_del, prefix="magicCoffeeReq")
+                pip_req_path = package_spec_file.name
+                print("Writing req file to {0}.".format(pip_req_path))
+                pip_req_file.write("\n".join(pkgs))
+                pip_req_file.flush()
+                sc.addFile(pip_req_file)
+                # Step 2: install the package on the running hosts
+                memory_status_count = sc._jsc.getExecutorMemoryStatus().size
+                # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
+                estimated_executors = range(max(self.defaultParallelism, memory_status_count))
+                rdd = sc.parallelize(range(estimated_executors))
+                rdd.foreach(install_package)
+        if self.install_local:
+            install_package()
         self.pip_pkgs.extend(pkgs)
 
     def launch_ship(self):
@@ -153,7 +179,7 @@ class Captain(object):
         print("Packaging conda env")
         subprocess.check_call(["zip", zip_target, "-r", conda_prefix],
                               stdout=DEVNULL)
-        relative_python_path = "." + conda_prefix + "/bin/python"
+        relative_conda_activate_path = "." + conda_prefix + "/bin/activate"
 
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
@@ -161,7 +187,9 @@ class Captain(object):
         then
             unzip {0} &>/dev/null && rm {0} &> /dev/null
         fi
-        {1} "$@" """.format(zip_name, relative_python_path))
+        source {1} &> /dev/null
+        pip install magicCoffeeReq* &> /dev/null
+        python "$@" """.format(zip_name, relative_conda_activate_path))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
@@ -172,9 +200,9 @@ class Captain(object):
         old_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "pyspark-shell")
         # Backup the old arguments
         if "coffee_boat" not in old_args:
-            os.environ["BACK_PYSPARK_SUBMIT_ARGS"] = old_args
+            os.environ["COFFEE_BACK_PYSPARK_SUBMIT_ARGS"] = old_args
         else:
-            old_args = os.environ.get("BACK_PYSPARK_SUBMIT_ARGS", "pyspark-shell")
+            old_args = os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS", "pyspark-shell")
         new_args = "--files {0},{1} {2}".format(zip_target, runner_script_path, old_args)
         print("using {0} as python arguments".format(new_args))
         os.environ["PYSPARK_SUBMIT_ARGS"] = new_args

@@ -96,11 +96,20 @@ class TestBasicDep(unittest2.TestCase):
 
             def find_info(x):
                 import os
-                #import pyarrow
+                import pyarrow
                 import sys
                 return (x, sys.executable, os.environ['PYTHONPATH'])
 
             result = rdd.map(find_info).collect()
+
+            # Add a live package!
+            captain.add_pip_packages("pybmp")
+
+            def check_pybmp(x):
+                import pybmp
+                return 1
+
+            result = rdd.map(check_pybmp).collect()
         finally:
             sc.stop()
         self.assertTrue("auto" in result[0][1])
