@@ -89,7 +89,7 @@ class Captain(object):
                 # TODO: Test this better (probably with circle CI)
                 pip_req_file = tempfile.NamedTemporaryFile(
                     dir=self.working_dir, delete=handle_del, prefix="magicCoffeeReq")
-                pip_req_path = package_spec_file.name
+                pip_req_path = pip_req_file.name
                 print("Writing req file to {0}.".format(pip_req_path))
                 pip_req_file.write("\n".join(pkgs))
                 pip_req_file.flush()
