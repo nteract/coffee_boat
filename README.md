@@ -1,4 +1,5 @@
 ![coffee_boat_logo](https://raw.githubusercontent.com/nteract/coffee_boat/master/imgs/coffee-boat.png)
+[![buildstatus](https://travis-ci.org/nteract/coffee_boat.svg?branch=master)](https://travis-ci.org/nteract/coffee_boat)
 
 # pyspark-deps
 WIP PySpark dependency management.
