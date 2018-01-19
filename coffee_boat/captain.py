@@ -95,7 +95,7 @@ class Captain(object):
                 pip_req_file.flush()
                 sc.addFile(pip_req_path)
                 # Step 2: install the package on the running hosts
-                memory_status_count = sc._jsc.getExecutorMemoryStatus.size
+                memory_status_count = sc._jsc.sc().getExecutorMemoryStatus().size()
                 # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
                 estimated_executors = range(max(self.defaultParallelism, memory_status_count))
                 rdd = sc.parallelize(range(estimated_executors))
