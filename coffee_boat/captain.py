@@ -93,7 +93,7 @@ class Captain(object):
                 print("Writing req file to {0}.".format(pip_req_path))
                 pip_req_file.write("\n".join(pkgs))
                 pip_req_file.flush()
-                sc.addFile(pip_req_file)
+                sc.addFile(pip_req_path)
                 # Step 2: install the package on the running hosts
                 memory_status_count = sc._jsc.getExecutorMemoryStatus().size
                 # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
