@@ -74,9 +74,11 @@ class Captain(object):
         sc = pyspark.context.SparkContext._active_spark_context
 
         def install_package(*args):
+            import subprocess
             args = ["pip", "install"]
             args.extend(pkgs)
             subprocess.check_call(args, stdout=DEVNULL)
+            return 1
 
         if sc is not None:
             if os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS") is None:
@@ -98,8 +100,10 @@ class Captain(object):
                 memory_status_count = sc._jsc.sc().getExecutorMemoryStatus().size()
                 # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
                 estimated_executors = range(max(sc.defaultParallelism, memory_status_count))
+                print("Estimated number of executors is {0}".format(estimated_executors))
                 rdd = sc.parallelize(range(estimated_executors))
                 rdd.foreach(install_package)
+                print("Installed package")
         if self.install_local:
             install_package()
         self.pip_pkgs.extend(pkgs)
@@ -179,7 +183,7 @@ class Captain(object):
         print("Packaging conda env")
         subprocess.check_call(["zip", zip_target, "-r", conda_prefix],
                               stdout=DEVNULL)
-        relative_conda_activate_path = "." + conda_prefix + "/bin/activate"
+        relative_conda_path = ".{0}".format(conda_prefix)
 
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
@@ -187,9 +191,10 @@ class Captain(object):
         then
             unzip {0} &>/dev/null && rm {0} &> /dev/null
         fi
-        source {1} &> /dev/null
-        pip install magicCoffeeReq* &> /dev/null
-        python "$@" """.format(zip_name, relative_conda_activate_path))
+        source {1}/bin/activate &> /dev/null
+        cat magicCoffeeReq* > mini_req.txt &> /dev/null || true
+        {1}/bin/pip install -r mini_req.txt &> /dev/null
+        {1}/bin/python "$@" """.format(zip_name, relative_conda_path))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
