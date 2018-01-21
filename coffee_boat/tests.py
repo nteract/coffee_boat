@@ -47,7 +47,7 @@ class TestBasicDep(unittest2.TestCase):
             rdd.map(test_imports).collect()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
     def test_non_local_env(self):
@@ -78,7 +78,7 @@ class TestBasicDep(unittest2.TestCase):
             result = rdd.map(find_info).collect()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
 
@@ -109,8 +109,8 @@ class TestBasicDep(unittest2.TestCase):
                 import pybmp
                 return 1
 
-            result = rdd.map(check_pybmp).collect()
+            rdd.map(check_pybmp).count()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])

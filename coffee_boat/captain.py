@@ -35,6 +35,7 @@ class Captain(object):
                  env_name=None,
                  working_dir=None,
                  accept_conda_license=False,
+                 enable_live_install=True,
                  python_version=None,
                  conda_path=None):
         """Create a captain to captain the coffee boat and install the packages.
@@ -47,6 +48,7 @@ class Captain(object):
         :param working_dir: Directory for working in.
         :param accept_conda_license: If you accept the conda license. Set it
             to True to work.
+        :param enable_live_install: Install at runtime between coffee boat launches.
         :param conda_path: Path to conda (optional). Otherwise searches system
             or self-installs.
 
@@ -55,10 +57,11 @@ class Captain(object):
         self.working_dir = working_dir
         self.install_local = install_local
         self.env_name = env_name or "auto{0}".format(str(uuid.uuid4()))
-        # Kind of hackey, but yay shells....
-        self.env_name = self.env_name.replace('-', "_")
+        # Kind of hackey, but yay shells & yay conda.
+        self.env_name = self.env_name.replace('-', "")
         self.python_version = (python_version or
                                '.'.join(map(str, sys.version_info[:3])))
+        self.enable_live_install = enable_live_install
         if not self.working_dir:
             self.working_dir = tempfile.mkdtemp(prefix="coffee_boat_tmp_")
             import atexit
@@ -66,6 +69,7 @@ class Captain(object):
                 atexit.register(lambda: shutil.rmtree(self.working_dir))
         self.use_conda = use_conda
         self.conda = conda_path
+        self.remote_conda = None
         self.pip_pkgs = []
         return
 
@@ -73,17 +77,10 @@ class Captain(object):
         """Add pip packages"""
         sc = pyspark.context.SparkContext._active_spark_context
 
-        def install_package(*args):
-            import subprocess
-            args = ["pip", "install"]
-            args.extend(pkgs)
-            subprocess.check_call(args, stdout=DEVNULL)
-            return 1
-
         if sc is not None:
             if os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS") is None:
                 print("Adding pip package. Remember to launch your coffee boat before trying to use!")
-            else:
+            elif self.enable_live_install:
                 print("You've already launched your coffee boat. I'll add this package at runtime"
                       " using magic, but next time add your packages before so I don't have to use"
                       " my magical super powers (aka make your code slow).")
@@ -99,13 +96,37 @@ class Captain(object):
                 # Step 2: install the package on the running hosts
                 memory_status_count = sc._jsc.sc().getExecutorMemoryStatus().size()
                 # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
-                estimated_executors = range(max(sc.defaultParallelism, memory_status_count))
+                estimated_executors = max(sc.defaultParallelism, memory_status_count)
                 print("Estimated number of executors is {0}".format(estimated_executors))
                 rdd = sc.parallelize(range(estimated_executors))
-                rdd.foreach(install_package)
-                print("Installed package")
+
+                my_pkgs = pkgs
+
+                def install_remote(x):
+                    import subprocess
+                    import sys
+                    print("Installing on executor {0} with python {1}".format(x, sys.executable))
+                    args = ["pip", "install"]
+                    args.extend(my_pkgs)
+                    print("Args for install are: {0}".format(args))
+                    subprocess.call(args)
+                    return 1
+
+                rdd.foreach(install_remote)
+                print("Installed package on remote")
+            else:
+                print("Spark context already running, remote install disabled."
+                      "re-launch of coffee boat required to provide package.")
+        else:
+            print("Adding package to requirements. Remember to launch coffee boat before"
+                  "starting SparkContext.")
+
         if self.install_local:
-            install_package()
+            print("Installing package locally")
+            import subprocess
+            args = ["pip", "install"]
+            args.extend(pkgs)
+            subprocess.call(args, stdout=DEVNULL)
         self.pip_pkgs.extend(pkgs)
 
     def launch_ship(self):
@@ -184,17 +205,25 @@ class Captain(object):
         subprocess.check_call(["zip", zip_target, "-r", conda_prefix],
                               stdout=DEVNULL)
         relative_conda_path = ".{0}".format(conda_prefix)
+        self.remote_conda = relative_conda_path
 
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
+        touch setup.lock
         if [ -f {0} ];
         then
-            unzip {0} &>/dev/null && rm {0} &> /dev/null
+            unzip {0} &>/dev/null && rm {0} &>> setup_log.txt
+            # Since Conda isn't really fully relocatable...
+            mv {1} {1}_src &>> setup_log.txt
+            rm -rf ./coffee_boat_conda &>> setup_log.txt
+            # TODO: avoid clone if we don't need it (non-dynamic install)
+            {1}_src/bin/conda create --prefix ./coffee_boat_conda --clone {1}_src &>> setup_log.txt
         fi
-        source {1}/bin/activate &> /dev/null
+        source ./coffee_boat_conda/bin/activate &>> activate_log.txt
         cat magicCoffeeReq* > mini_req.txt &> /dev/null || true
-        {1}/bin/pip install -r mini_req.txt &> /dev/null
-        {1}/bin/python "$@" """.format(zip_name, relative_conda_path))
+        ./coffee_boat_conda/bin/pip install -r mini_req.txt &>> pip_install_log.txt
+        export PATH=./coffee_boat_conda/bin:$PATH
+        ./coffee_boat_conda/bin/python "$@" """.format(zip_name, relative_conda_path))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
