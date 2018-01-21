@@ -47,7 +47,7 @@ class TestBasicDep(unittest2.TestCase):
             rdd.map(test_imports).collect()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
     def test_non_local_env(self):
@@ -78,7 +78,7 @@ class TestBasicDep(unittest2.TestCase):
             result = rdd.map(find_info).collect()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])
 
 
@@ -96,12 +96,21 @@ class TestBasicDep(unittest2.TestCase):
 
             def find_info(x):
                 import os
-                #import pyarrow
+                import pyarrow
                 import sys
                 return (x, sys.executable, os.environ['PYTHONPATH'])
 
             result = rdd.map(find_info).collect()
+
+            # Add a live package!
+            captain.add_pip_packages("pybmp")
+
+            def check_pybmp(x):
+                import pybmp
+                return 1
+
+            rdd.map(check_pybmp).count()
         finally:
             sc.stop()
-        self.assertTrue("auto" in result[0][1])
+        self.assertTrue("coffee_boat_conda" in result[0][1])
         self.assertTrue("python" in result[0][1])
