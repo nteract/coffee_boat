@@ -195,7 +195,6 @@ class Captain(object):
             subprocess.check_call(["rm", "-rf", conda_prefix])
         subprocess.check_call([self.conda, "env", "create",
                                "-f", package_spec_path,
-                               "--copy",
                                "--prefix", conda_prefix],
                               stdout=DEVNULL)
 
