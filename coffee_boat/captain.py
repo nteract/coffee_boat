@@ -219,19 +219,15 @@ class Captain(object):
             echo "Running setup" >> coffee_log.txt
             unzip {0} &>> coffee_log.txt && rm {0} &>> coffee_log.txt
             # Since Conda isn't really fully relocatable...
-            mv {1} {1}_src &>> coffee_log.txt
-            sed -i -e "1s@.*@\#\!{1}_src/bin/python@" {1}_src/bin/conda
-            rm -rf ./coffee_boat_conda &>> coffee_log.txt
-            # TODO: avoid clone if we don't need it (non-dynamic install?)
-            {1}_src/bin/conda create --offline --prefix ./coffee_boat_conda --clone {1}_src &>> coffee_log.txt
+            echo "Rewriting conda and pip python paths..." >> coffee_log.txt
+            sed -i -e "1s@.*@\#\!{1}/bin/python@" {1}/bin/conda >> coffee_log.txt
+            sed -i -e "1s@.*@\#\!{1}/bin/python@" {1}/bin/pip >> coffee_log.txt
         fi
-        echo "Activating env..." >> coffee_log.txt
-        source ./coffee_boat_conda/bin/activate &>> coffee_log.txt
         cat magicCoffeeReq* > mini_req.txt &> /dev/null || true
         echo "pip install" >> coffee_log.txt
-        ./coffee_boat_conda/bin/pip install -r mini_req.txt &>> coffee_log.txt
-        export PATH=./coffee_boat_conda/bin:$PATH
-        ./coffee_boat_conda/bin/python "$@" || cat coffee_log.txt 1>&2 """.format(zip_name, relative_conda_path))
+        {1}/bin/pip install -r mini_req.txt &>> coffee_log.txt
+        export PATH={1}/bin:$PATH
+        {1}/bin/python "$@" || cat coffee_log.txt 1>&2 """.format(zip_name, relative_conda_path))
         print("Using runner script\n{0}".format(runner_script))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
