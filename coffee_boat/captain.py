@@ -210,11 +210,14 @@ class Captain(object):
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
         touch setup.lock # TODO: work with this
-        echo "Kicking off python runner" > coffee_log.txt
+        echo "Kicking off python runner {0}" > coffee_log.txt
+        echo "pwd looks like:" >> coffee_log.txt
+        ls >> coffee_log.txt
+        echo "k" >> coffee_log.txt"
         if [ -f {0} ];
         then
             echo "Running setup" >> coffee_log.txt
-            unzip {0} &>/dev/null && rm {0} &>> coffee_log.txt
+            unzip {0} &>> coffee_log.txt && rm {0} &>> coffee_log.txt
             # Since Conda isn't really fully relocatable...
             mv {1} {1}_src &>> coffee_log.txt
             sed -i -e "1s@.*@\#\!{1}_src/bin/python@" {1}_src/bin/conda
