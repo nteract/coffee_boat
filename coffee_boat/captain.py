@@ -209,21 +209,26 @@ class Captain(object):
 
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
-        touch setup.lock
+        touch setup.lock # TODO: work with this
+        echo "Kicking off python runner {0}" > coffee_log.txt
+        echo "pwd looks like:" >> coffee_log.txt
+        ls >> coffee_log.txt
+        echo "k" >> coffee_log.txt
         if [ -f {0} ];
         then
-            unzip {0} &>/dev/null && rm {0} &>> setup_log.txt
+            echo "Running setup" >> coffee_log.txt
+            unzip {0} &>> coffee_log.txt && rm {0} &>> coffee_log.txt
             # Since Conda isn't really fully relocatable...
-            mv {1} {1}_src &>> setup_log.txt
-            rm -rf ./coffee_boat_conda &>> setup_log.txt
-            # TODO: avoid clone if we don't need it (non-dynamic install)
-            {1}_src/bin/conda create --prefix ./coffee_boat_conda --clone {1}_src &>> setup_log.txt
+            echo "Rewriting conda and pip python paths..." >> coffee_log.txt
+            sed -i -e "1s@.*@\#\!{1}/bin/python@" {1}/bin/conda >> coffee_log.txt
+            sed -i -e "1s@.*@\#\!{1}/bin/python@" {1}/bin/pip >> coffee_log.txt
         fi
-        source ./coffee_boat_conda/bin/activate &>> activate_log.txt
         cat magicCoffeeReq* > mini_req.txt &> /dev/null || true
-        ./coffee_boat_conda/bin/pip install -r mini_req.txt &>> pip_install_log.txt
-        export PATH=./coffee_boat_conda/bin:$PATH
-        ./coffee_boat_conda/bin/python "$@" """.format(zip_name, relative_conda_path))
+        echo "pip install" >> coffee_log.txt
+        {1}/bin/pip install -r mini_req.txt &>> coffee_log.txt
+        export PATH={1}/bin:$PATH
+        {1}/bin/python "$@" || cat coffee_log.txt 1>&2 """.format(zip_name, relative_conda_path))
+        print("Using runner script\n{0}".format(runner_script))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
