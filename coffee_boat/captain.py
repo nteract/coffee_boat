@@ -232,7 +232,8 @@ class Captain(object):
         ./coffee_boat_conda/bin/pip install -r mini_req.txt &>> coffee_log.txt
         export PATH=./coffee_boat_conda/bin:$PATH
         ./coffee_boat_conda/bin/python "$@" || cat coffee_log.txt 1>&2 """.format(zip_name, relative_conda_path))
-        script_name = "coffee_boat_runner_{0}.sh".format(self.env_name, relative_conda_path)
+        print("Using runner script\n{0}".format(runner_script))
+        script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
             f.write(runner_script)
