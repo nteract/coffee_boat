@@ -217,9 +217,10 @@ class Captain(object):
             unzip {0} &>/dev/null && rm {0} &>> coffee_log.txt
             # Since Conda isn't really fully relocatable...
             mv {1} {1}_src &>> coffee_log.txt
+            sed -i "1s/.*/#!{1}_src/bin/python" {1}_src/bin/conda
             rm -rf ./coffee_boat_conda &>> coffee_log.txt
-            # TODO: avoid clone if we don't need it (non-dynamic install)
-            {1}_src/bin/conda create --prefix ./coffee_boat_conda --clone {1}_src &>> coffee_log.txt
+            # TODO: avoid clone if we don't need it (non-dynamic install?)
+            {1}_src/bin/conda create --offline --prefix ./coffee_boat_conda --clone {1}_src &>> coffee_log.txt
         fi
         echo "Activating env..." >> coffee_log.txt
         source ./coffee_boat_conda/bin/activate &>> coffee_log.txt
