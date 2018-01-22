@@ -209,7 +209,8 @@ class Captain(object):
 
         # Make a self extractor script
         runner_script = inspect.cleandoc("""#!/bin/bash
-        touch setup.lock
+        touch setup.lock # TODO: work with this
+        echo "Kicking off python runner" > coffee_log.txt
         if [ -f {0} ];
         then
             echo "Running setup" >> coffee_log.txt
