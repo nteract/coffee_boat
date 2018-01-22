@@ -213,7 +213,7 @@ class Captain(object):
         echo "Kicking off python runner {0}" > coffee_log.txt
         echo "pwd looks like:" >> coffee_log.txt
         ls >> coffee_log.txt
-        echo "k" >> coffee_log.txt"
+        echo "k" >> coffee_log.txt
         if [ -f {0} ];
         then
             echo "Running setup" >> coffee_log.txt
