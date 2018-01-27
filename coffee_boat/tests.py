@@ -2,6 +2,10 @@
 import pyspark
 import subprocess
 import unittest2
+import logging
+
+logger = logging.getLogger()
+logger.level = logging.INFO
 
 
 class TestBasicDep(unittest2.TestCase):
@@ -10,7 +14,7 @@ class TestBasicDep(unittest2.TestCase):
 
     def test_simple_env(self):
         import os
-        print(os.environ)
+        logger.info(os.environ)
         from coffee_boat import Captain
         # Create a captain
         captain = Captain(accept_conda_license=True)
@@ -25,8 +29,8 @@ class TestBasicDep(unittest2.TestCase):
         import nbconvert
         import pandas
         captain.launch_ship()
-        print("Ship launched , set PYSPARK_PYTHON to {0}".format(os.environ['PYSPARK_PYTHON']))
-        print("Connecting to local Spark master.")
+        logger.info("Ship launched , set PYSPARK_PYTHON to {0}".format(os.environ['PYSPARK_PYTHON']))
+        logger.info("Connecting to local Spark master.")
         sc = pyspark.context.SparkContext(master="spark://localhost:7077")
         try:
             rdd = sc.parallelize(range(2))
@@ -39,7 +43,7 @@ class TestBasicDep(unittest2.TestCase):
                         os.environ['PYTHONPATH'],
                         os.listdir('.'))
             result = rdd.map(find_info).collect()
-            print("Result {0}".format(result))
+            logger.info("Result {0}".format(result))
 
             def test_imports(x):
                 import nbconvert
@@ -52,7 +56,7 @@ class TestBasicDep(unittest2.TestCase):
 
     def test_non_local_env(self):
         import os
-        print(os.environ)
+        logger.info(os.environ)
         from coffee_boat import Captain
         # Creat a captain
         captain = Captain(install_local=False, accept_conda_license=True)

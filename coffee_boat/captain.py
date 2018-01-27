@@ -7,10 +7,13 @@ import tempfile
 import uuid
 import warnings
 import os
+import logging
 
 __all__ = ['Captain']
 
 handle_del = False
+
+logging.basicConfig(level=logging.INFO)
 
 try:
     from subprocess import DEVNULL  # py3k
@@ -71,6 +74,9 @@ class Captain(object):
         self.conda = conda_path
         self.remote_conda = None
         self.pip_pkgs = []
+
+        self.logger = logging.getLogger()
+        self.logger.level = logging.INFO
         return
 
     def add_pip_packages(self, *pkgs):
@@ -79,9 +85,9 @@ class Captain(object):
 
         if sc is not None:
             if os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS") is None:
-                print("Adding pip package. Remember to launch your coffee boat before trying to use!")
+                self.logger.info("Adding pip package. Remember to launch your coffee boat before trying to use!")
             elif self.enable_live_install:
-                print("You've already launched your coffee boat. I'll add this package at runtime"
+                self.logger.info("You've already launched your coffee boat. I'll add this package at runtime"
                       " using magic, but next time add your packages before so I don't have to use"
                       " my magical super powers (aka make your code slow).")
                 # Step 1: Setup a dist file so any new hosts coming online will install
@@ -89,7 +95,7 @@ class Captain(object):
                 pip_req_file = tempfile.NamedTemporaryFile(
                     dir=self.working_dir, delete=handle_del, prefix="magicCoffeeReq")
                 pip_req_path = pip_req_file.name
-                print("Writing req file to {0}.".format(pip_req_path))
+                self.logger.info("Writing req file to {0}.".format(pip_req_path))
                 pip_req_file.write("\n".join(pkgs))
                 pip_req_file.flush()
                 sc.addFile(pip_req_path)
@@ -97,7 +103,7 @@ class Captain(object):
                 memory_status_count = sc._jsc.sc().getExecutorMemoryStatus().size()
                 # TODO: This is kind of a hack. Figure out if its dangerous (aka wrong)
                 estimated_executors = max(sc.defaultParallelism, memory_status_count)
-                print("Estimated number of executors is {0}".format(estimated_executors))
+                self.logger.info("Estimated number of executors is {0}".format(estimated_executors))
                 rdd = sc.parallelize(range(estimated_executors))
 
                 my_pkgs = pkgs
@@ -105,24 +111,24 @@ class Captain(object):
                 def install_remote(x):
                     import subprocess
                     import sys
-                    print("Installing on executor {0} with python {1}".format(x, sys.executable))
+                    self.logger.info("Installing on executor {0} with python {1}".format(x, sys.executable))
                     args = ["pip", "install"]
                     args.extend(my_pkgs)
-                    print("Args for install are: {0}".format(args))
+                    self.logger.info("Args for install are: {0}".format(args))
                     subprocess.call(args)
                     return 1
 
                 rdd.foreach(install_remote)
-                print("Installed package on remote")
+                self.logger.info("Installed package on remote")
             else:
-                print("Spark context already running, remote install disabled."
+                self.logger.info("Spark context already running, remote install disabled."
                       "re-launch of coffee boat required to provide package.")
         else:
-            print("Adding package to requirements. Remember to launch coffee boat before"
+            self.logger.info("Adding package to requirements. Remember to launch coffee boat before"
                   "starting SparkContext.")
 
         if self.install_local:
-            print("Installing package locally")
+            self.logger.info("Installing package locally")
             import subprocess
             args = ["pip", "install"]
             args.extend(pkgs)
@@ -183,15 +189,15 @@ class Captain(object):
         package_spec_file = tempfile.NamedTemporaryFile(dir=self.working_dir,
                                                         delete=handle_del)
         package_spec_path = package_spec_file.name
-        print("Writing package spec to {0}.".format(package_spec_path))
+        self.logger.info("Writing package spec to {0}.".format(package_spec_path))
         package_spec_file.write(package_spec)
         package_spec_file.flush()
 
         # Create the conda env
         conda_prefix = os.path.join(self.working_dir, self.env_name)
-        print("Creating conda env")
+        self.logger.info("Creating conda env")
         if os.path.exists(conda_prefix):
-            print("Cleaining up old prefix {0}".format(conda_prefix))
+            self.logger.info("Cleaining up old prefix {0}".format(conda_prefix))
             subprocess.check_call(["rm", "-rf", conda_prefix])
         subprocess.check_call([self.conda, "env", "create",
                                "-f", package_spec_path,
@@ -201,7 +207,7 @@ class Captain(object):
         # Package it for distro
         zip_name = "coffee_boat_{0}.zip".format(self.env_name)
         zip_target = os.path.join(self.working_dir, zip_name)
-        print("Packaging conda env")
+        self.logger.info("Packaging conda env")
         subprocess.check_call(["zip", zip_target, "-r", conda_prefix],
                               stdout=DEVNULL)
         relative_conda_path = ".{0}".format(conda_prefix)
@@ -228,7 +234,7 @@ class Captain(object):
         {1}/bin/pip install -r mini_req.txt &>> coffee_log.txt
         export PATH={1}/bin:$PATH
         {1}/bin/python "$@" || cat coffee_log.txt 1>&2 """.format(zip_name, relative_conda_path))
-        print("Using runner script\n{0}".format(runner_script))
+        self.logger.info("Using runner script\n{0}".format(runner_script))
         script_name = "coffee_boat_runner_{0}.sh".format(self.env_name)
         runner_script_path = os.path.join(self.working_dir, script_name)
         with open(runner_script_path, 'w') as f:
@@ -243,21 +249,21 @@ class Captain(object):
         else:
             old_args = os.environ.get("COFFEE_BACK_PYSPARK_SUBMIT_ARGS", "pyspark-shell")
         new_args = "--files {0},{1} {2}".format(zip_target, runner_script_path, old_args)
-        print("using {0} as python arguments".format(new_args))
+        self.logger.info("using {0} as python arguments".format(new_args))
         os.environ["PYSPARK_SUBMIT_ARGS"] = new_args
         # Handle active/already running contexts.
         sc = pyspark.context.SparkContext._active_spark_context
         if sc is not None:
-            print("Adding {0} & {1} to existing sc".format(zip_target, runner_script_path))
+            self.logger.info("Adding {0} & {1} to existing sc".format(zip_target, runner_script_path))
             sc.addFile(zip_target)
             sc.addFile(runner_script_path)
-            print("Updating python exec on existing sc")
+            self.logger.info("Updating python exec on existing sc")
             sc.pythonExec = "./{0}".format(script_name)
         else:
-            print("No active context, depending on submit args.")
+            self.logger.info("No active context, depending on submit args.")
 
         if "PYSPARK_GATEWAY_PORT" in os.environ:
-            print("Hey the Java process is already running, this might not work.")
+            self.logger.info("Hey the Java process is already running, this might not work.")
         os.environ["PYSPARK_PYTHON"] = "./{0}".format(script_name)
 
     def _launch_pex(self):
@@ -280,12 +286,12 @@ class Captain(object):
                             "accept_conda_license")
         python_version = sys.version_info[0]
         url = "https://repo.continuum.io/miniconda/Miniconda%d-latest-Linux-x86_64.sh" % python_version
-        print("Downloading conda from %s to %s" % (url, self.working_dir))
+        self.logger.info("Downloading conda from %s to %s" % (url, self.working_dir))
         mini_conda_target = "%s/%s" % (self.working_dir, "miniconda.sh")
         subprocess.check_call(["wget", url, "-O", mini_conda_target, "-nv"],
                               shell=False,
                               stdout=DEVNULL)
-        print("Running conda setup....")
+        self.logger.info("Running conda setup....")
         subprocess.check_call(["chmod", "a+x", mini_conda_target],
                               shell=False,
                               stdout=DEVNULL)
