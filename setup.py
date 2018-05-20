@@ -11,7 +11,7 @@ setup(
     url='https://github.com/nteract/coffee_boat',
     license='LICENSE',
     description='Improve dependency management for PySpark in notebooks',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     install_requires=[
         # We skip Pyspark as a requirement since many cloud notebooks won't have
         # this listed as provided (for now). TODO: Put back in once this isn't the case. #5
